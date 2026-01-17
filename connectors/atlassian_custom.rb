@@ -1,5 +1,5 @@
 {
-  title: "Atlassian Jira Users (Custom) - https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-users/",
+  title: "Atlassian Jira Users (Custom)",
 
   # Connection configuration
   connection: {
@@ -17,6 +17,7 @@
         optional: false,
         hint: "Your OAuth 2.0 Client Secret from Atlassian Developer Console"
       }
+      
     ],
 
     authorization: {
@@ -161,8 +162,9 @@
 
       input_fields: lambda do |object_definitions|
         [
-          { name: "cloud_id", label: "Cloud ID", optional: false,
-            hint: "The Cloud ID of your Jira site. Use 'Get accessible resources' action to find this." },
+          { name: "cloud_id", label: "Jira Site", 
+            control_type: "select", pick_list: "cloud_resources",
+            optional: false, hint: "Select your Jira site" },
           { name: "accountId", label: "Account ID", optional: false,
             hint: "The account ID of the user" }
         ]
@@ -184,8 +186,9 @@
 
       input_fields: lambda do |object_definitions|
         [
-          { name: "cloud_id", label: "Cloud ID", optional: false,
-            hint: "The Cloud ID of your Jira site" },
+          { name: "cloud_id", label: "Jira Site", 
+            control_type: "select", pick_list: "cloud_resources",
+            optional: false, hint: "Select your Jira site" },
           { name: "query", label: "Query", optional: true,
             hint: "Query string to search for users (searches by displayName, email, etc.)" },
           { name: "maxResults", label: "Max Results", type: "integer", 
@@ -224,8 +227,9 @@
 
       input_fields: lambda do |object_definitions|
         [
-          { name: "cloud_id", label: "Cloud ID", optional: false,
-            hint: "The Cloud ID of your Jira site" },
+          { name: "cloud_id", label: "Jira Site", 
+            control_type: "select", pick_list: "cloud_resources",
+            optional: false, hint: "Select your Jira site" },
           { name: "maxResults", label: "Max Results", type: "integer", 
             optional: true, default: 50,
             hint: "Maximum number of users to return per page" }
@@ -258,7 +262,9 @@
 
       input_fields: lambda do |object_definitions|
         [
-          { name: "cloud_id", label: "Cloud ID", optional: false },
+          { name: "cloud_id", label: "Jira Site", 
+            control_type: "select", pick_list: "cloud_resources",
+            optional: false, hint: "Select your Jira site" },
           { name: "accountId", label: "Account ID", optional: false,
             hint: "The account ID of the user" }
         ]
@@ -290,7 +296,9 @@
 
       input_fields: lambda do |object_definitions|
         [
-          { name: "cloud_id", label: "Cloud ID", optional: false },
+          { name: "cloud_id", label: "Jira Site", 
+            control_type: "select", pick_list: "cloud_resources",
+            optional: false, hint: "Select your Jira site" },
           { name: "project", label: "Project Key or ID", optional: true,
             hint: "Project key or ID to find assignable users for" },
           { name: "query", label: "Query", optional: true,
@@ -333,8 +341,9 @@
 
       input_fields: lambda do |object_definitions|
         [
-          { name: "cloud_id", label: "Cloud ID", optional: false,
-            hint: "The Cloud ID of your Jira site" },
+          { name: "cloud_id", label: "Jira Site", 
+            control_type: "select", pick_list: "cloud_resources",
+            optional: false, hint: "Select your Jira site" },
           { name: "since", label: "When first started, this recipe should pick up events from", 
             type: "timestamp", optional: true,
             hint: "Leave blank to get users from now onwards" }
