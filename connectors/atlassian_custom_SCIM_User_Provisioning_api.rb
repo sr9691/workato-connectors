@@ -5,11 +5,15 @@
   connection: {
     fields: [
       {
-        name: 'api_token',
+        name: 'api_key',
+        label: 'API Key',
+        hint: 'Generated at https://admin.atlassian.com/. Go to Security → User security → Identity providers. Create a "Generic", "Custom" or similar',
         optional: false,
       },
       {
         name: 'directory_id',
+        label: 'Directory ID',
+        hint: 'Directory ID is provided when API Key is generated. Along with the key, a url will be provided and directory ID will be a part of this URL. Pattern: https://api.atlassian.com/scim/directory/*DIRECTORY ID*',
         optional: false,
       }
     ],
@@ -19,7 +23,7 @@
 
       apply: lambda do |connection|
         headers(
-          "Authorization": "Bearer #{connection["api_token"]}",
+          "Authorization": "Bearer #{connection["api_key"]}",
           "Accept": "application/json"
         )
       end

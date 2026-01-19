@@ -1,5 +1,5 @@
 {
-  title: "Atlassian Jira Users (Custom)",
+  title: "Atlassian - Confluence Users API - https://developer.atlassian.com/cloud/confluence/rest/api-group-users/",
 
   # Connection configuration
   connection: {
@@ -17,7 +17,6 @@
         optional: false,
         hint: "Your OAuth 2.0 Client Secret from Atlassian Developer Console"
       }
-      
     ],
 
     authorization: {
@@ -28,7 +27,7 @@
         params = {
           audience: "api.atlassian.com",
           client_id: connection["client_id"],
-          scope: "read:jira-user read:jira-work write:jira-work manage:jira-configuration offline_access",
+          scope: "read:confluence-user read:confluence-content.all write:confluence-content offline_access",
           redirect_uri: "https://www.workato.com/oauth/callback",
           response_type: "code",
           prompt: "consent"
@@ -105,20 +104,18 @@
         [
           { name: "accountId", label: "Account ID", type: "string" },
           { name: "accountType", label: "Account Type", type: "string" },
-          { name: "emailAddress", label: "Email Address", type: "string" },
+          { name: "email", label: "Email", type: "string" },
+          { name: "publicName", label: "Public Name", type: "string" },
           { name: "displayName", label: "Display Name", type: "string" },
-          { name: "active", label: "Active", type: "boolean" },
-          { name: "timeZone", label: "Time Zone", type: "string" },
-          { name: "locale", label: "Locale", type: "string" },
-          { name: "avatarUrls", label: "Avatar URLs", type: "object", 
+          { name: "profilePicture", label: "Profile Picture", type: "object", 
             properties: [
-              { name: "48x48", type: "string" },
-              { name: "24x24", type: "string" },
-              { name: "16x16", type: "string" },
-              { name: "32x32", type: "string" }
+              { name: "path", type: "string" },
+              { name: "width", type: "integer" },
+              { name: "height", type: "integer" },
+              { name: "isDefault", type: "boolean" }
             ]
           },
-          { name: "self", label: "Self URL", type: "string" }
+          { name: "isExternalCollaborator", label: "External Collaborator", type: "boolean" }
         ]
       end
     },
@@ -140,7 +137,7 @@
   actions: {
     # Get accessible resources (sites)
     get_accessible_resources: {
-      description: "Get list of <span class='provider'>Jira sites</span> accessible to the authenticated user",
+      description: "Get list of <span class='provider'>Confluence sites</span> accessible to the authenticated user",
 
       execute: lambda do |connection, input|
         {
@@ -156,22 +153,43 @@
       end
     },
 
+    # Get current user
+    get_current_user: {
+      description: "Get the <span class='provider'>current authenticated user</span>",
+
+      input_fields: lambda do |object_definitions|
+        [
+          { name: "cloud_id", label: "Confluence Site", 
+            control_type: "select", pick_list: "cloud_resources",
+            optional: false, hint: "Select your Confluence site" }
+        ]
+      end,
+
+      execute: lambda do |connection, input|
+        get("https://api.atlassian.com/ex/confluence/#{input['cloud_id']}/wiki/rest/api/user/current")
+      end,
+
+      output_fields: lambda do |object_definitions|
+        object_definitions["user"]
+      end
+    },
+
     # Get user by account ID
     get_user: {
       description: "Get <span class='provider'>user details</span> by account ID",
 
       input_fields: lambda do |object_definitions|
         [
-          { name: "cloud_id", label: "Jira Site", 
+          { name: "cloud_id", label: "Confluence Site", 
             control_type: "select", pick_list: "cloud_resources",
-            optional: false, hint: "Select your Jira site" },
+            optional: false, hint: "Select your Confluence site" },
           { name: "accountId", label: "Account ID", optional: false,
             hint: "The account ID of the user" }
         ]
       end,
 
       execute: lambda do |connection, input|
-        get("https://api.atlassian.com/ex/jira/#{input['cloud_id']}/rest/api/3/user").
+        get("https://api.atlassian.com/ex/confluence/#{input['cloud_id']}/wiki/rest/api/user").
           params(accountId: input['accountId'])
       end,
 
@@ -180,34 +198,28 @@
       end
     },
 
-    # Search for users
-    search_users: {
-      description: "Search for <span class='provider'>users</span> in Jira",
+    # Get bulk users
+    get_bulk_users: {
+      description: "Get multiple <span class='provider'>users</span> by account IDs",
 
       input_fields: lambda do |object_definitions|
         [
-          { name: "cloud_id", label: "Jira Site", 
+          { name: "cloud_id", label: "Confluence Site", 
             control_type: "select", pick_list: "cloud_resources",
-            optional: false, hint: "Select your Jira site" },
-          { name: "query", label: "Query", optional: true,
-            hint: "Query string to search for users (searches by displayName, email, etc.)" },
-          { name: "maxResults", label: "Max Results", type: "integer", 
-            optional: true, default: 50,
-            hint: "Maximum number of users to return (default: 50)" },
-          { name: "startAt", label: "Start At", type: "integer", 
-            optional: true, default: 0,
-            hint: "Index of the first user to return (for pagination)" }
+            optional: false, hint: "Select your Confluence site" },
+          { name: "accountIds", label: "Account IDs", optional: false,
+            hint: "Comma-separated list of account IDs (max 200)" },
+          { name: "limit", label: "Limit", type: "integer", 
+            optional: true, default: 200,
+            hint: "Maximum number of users to return (default: 200)" }
         ]
       end,
 
       execute: lambda do |connection, input|
-        params = {
-          maxResults: input['maxResults'] || 50,
-          startAt: input['startAt'] || 0
-        }
-        params['query'] = input['query'] if input['query'].present?
+        params = { accountId: input['accountIds'] }
+        params[:limit] = input['limit'] if input['limit'].present?
 
-        response = get("https://api.atlassian.com/ex/jira/#{input['cloud_id']}/rest/api/3/user/search").
+        response = get("https://api.atlassian.com/ex/confluence/#{input['cloud_id']}/wiki/rest/api/user/bulk").
           params(params)
 
         { users: response }
@@ -221,101 +233,73 @@
       end
     },
 
-    # Get all users (bulk)
-    get_all_users: {
-      description: "Get all <span class='provider'>users</span> from Jira site",
+    # Get anonymous user
+    get_anonymous_user: {
+      description: "Get the <span class='provider'>anonymous user</span> information",
 
       input_fields: lambda do |object_definitions|
         [
-          { name: "cloud_id", label: "Jira Site", 
+          { name: "cloud_id", label: "Confluence Site", 
             control_type: "select", pick_list: "cloud_resources",
-            optional: false, hint: "Select your Jira site" },
-          { name: "maxResults", label: "Max Results", type: "integer", 
-            optional: true, default: 50,
-            hint: "Maximum number of users to return per page" }
+            optional: false, hint: "Select your Confluence site" }
         ]
       end,
 
       execute: lambda do |connection, input|
-        params = {
-          maxResults: input['maxResults'] || 50,
-          startAt: 0
-        }
-
-        response = get("https://api.atlassian.com/ex/jira/#{input['cloud_id']}/rest/api/3/users/search").
-          params(params)
-
-        { users: response }
+        get("https://api.atlassian.com/ex/confluence/#{input['cloud_id']}/wiki/rest/api/user/anonymous")
       end,
 
       output_fields: lambda do |object_definitions|
-        [
-          { name: "users", type: "array", of: "object",
-            properties: object_definitions["user"] }
-        ]
+        object_definitions["user"]
       end
     },
 
-    # Get user groups
-    get_user_groups: {
-      description: "Get <span class='provider'>groups</span> that a user belongs to",
+    # Get user by email
+    get_user_by_email: {
+      description: "Get <span class='provider'>user details</span> by email address",
 
       input_fields: lambda do |object_definitions|
         [
-          { name: "cloud_id", label: "Jira Site", 
+          { name: "cloud_id", label: "Confluence Site", 
             control_type: "select", pick_list: "cloud_resources",
-            optional: false, hint: "Select your Jira site" },
-          { name: "accountId", label: "Account ID", optional: false,
-            hint: "The account ID of the user" }
+            optional: false, hint: "Select your Confluence site" },
+          { name: "email", label: "Email Address", optional: false,
+            hint: "The email address of the user" }
         ]
       end,
 
       execute: lambda do |connection, input|
-        response = get("https://api.atlassian.com/ex/jira/#{input['cloud_id']}/rest/api/3/user/groups").
-          params(accountId: input['accountId'])
-
-        { groups: response }
+        get("https://api.atlassian.com/ex/confluence/#{input['cloud_id']}/wiki/rest/api/user/email").
+          params(email: input['email'])
       end,
 
       output_fields: lambda do |object_definitions|
-        [
-          { name: "groups", type: "array", of: "object",
-            properties: [
-              { name: "name", type: "string" },
-              { name: "groupId", type: "string" },
-              { name: "self", type: "string" }
-            ]
-          }
-        ]
+        object_definitions["user"]
       end
     },
 
-    # Find users assignable to projects
-    find_assignable_users: {
-      description: "Find <span class='provider'>users</span> assignable to projects",
+    # Get multiple users by email
+    get_bulk_users_by_email: {
+      description: "Get multiple <span class='provider'>users</span> by email addresses",
 
       input_fields: lambda do |object_definitions|
         [
-          { name: "cloud_id", label: "Jira Site", 
+          { name: "cloud_id", label: "Confluence Site", 
             control_type: "select", pick_list: "cloud_resources",
-            optional: false, hint: "Select your Jira site" },
-          { name: "project", label: "Project Key or ID", optional: true,
-            hint: "Project key or ID to find assignable users for" },
-          { name: "query", label: "Query", optional: true,
-            hint: "Query string to filter users" },
-          { name: "maxResults", label: "Max Results", type: "integer", 
-            optional: true, default: 50 }
+            optional: false, hint: "Select your Confluence site" },
+          { name: "emails", label: "Email Addresses", optional: false,
+            hint: "Comma-separated list of email addresses (max 200)" },
+          { name: "limit", label: "Limit", type: "integer", 
+            optional: true, default: 200,
+            hint: "Maximum number of users to return (default: 200)" }
         ]
       end,
 
       execute: lambda do |connection, input|
-        params = {
-          maxResults: input['maxResults'] || 50
-        }
-        params['project'] = input['project'] if input['project'].present?
-        params['query'] = input['query'] if input['query'].present?
+        params = { email: input['emails'] }
+        params[:limit] = input['limit'] if input['limit'].present?
 
-        response = get("https://api.atlassian.com/ex/jira/#{input['cloud_id']}/rest/api/3/user/assignable/search").
+        response = get("https://api.atlassian.com/ex/confluence/#{input['cloud_id']}/wiki/rest/api/user/email/bulk").
           params(params)
 
         { users: response }
@@ -332,18 +316,17 @@
 
   # Triggers
   triggers: {
-    # Note: Jira doesn't provide real-time webhooks through OAuth 2.0 apps easily
-    # These would be polling-based triggers
+    # Polling-based trigger for users
     new_or_updated_user: {
-      description: "Triggers when a <span class='provider'>user</span> is created or updated",
+      description: "Triggers when a <span class='provider'>user</span> is created or updated in Confluence",
       
       type: :paging_desc,
 
       input_fields: lambda do |object_definitions|
         [
-          { name: "cloud_id", label: "Jira Site", 
+          { name: "cloud_id", label: "Confluence Site", 
             control_type: "select", pick_list: "cloud_resources",
-            optional: false, hint: "Select your Jira site" },
+            optional: false, hint: "Select your Confluence site" },
           { name: "since", label: "When first started, this recipe should pick up events from", 
             type: "timestamp", optional: true,
             hint: "Leave blank to get users from now onwards" }
@@ -354,17 +337,16 @@
         page ||= 0
         page_size = 50
 
-        params = {
-          startAt: page * page_size,
-          maxResults: page_size
-        }
-
-        users = get("https://api.atlassian.com/ex/jira/#{input['cloud_id']}/rest/api/3/users/search").
-          params(params)
-
+        # Note: Confluence doesn't have a direct "list all users" endpoint
+        # This is a simplified example - you may need to adjust based on your needs
+        # You might need to use a different approach like getting users from spaces or pages
+        
+        # For this example, we'll use the bulk endpoint with known account IDs
+        # In production, you'd need to maintain a list of account IDs or use a different strategy
+        
         {
-          events: users,
-          next_page: users.length >= page_size ? page + 1 : nil
+          events: [],
+          next_page: nil
         }
       end,
 
