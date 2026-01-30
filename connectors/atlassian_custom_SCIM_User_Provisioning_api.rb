@@ -1,7 +1,6 @@
 {
-  title: 'Atlassian - SCIM User Provisioning API',
+  title: 'Atlassian - SCIM User Provisioning API - https://developer.atlassian.com/cloud/admin/user-provisioning/rest',
   
-
   connection: {
     fields: [
       {
@@ -58,11 +57,50 @@
         end,
 
         execute: lambda do |connection, input|
-          get("/Users")
+          get("/scim/directory/#{connection['directory_id']}/Users/#{input['userid']}")
         end,
 
         output_fields: lambda do |object_definitions|
           object_definitions[:user_by_id_output]
+        end
+    },
+    create_user: {
+        title: "USERS - Create user",
+        subtitle: "Create user",
+
+        input_fields: lambda do |object_definitions|
+          object_definitions[:create_user_input]
+        end,
+
+        execute: lambda do |connection, input|
+          post("/scim/directory/#{connection['directory_id']}/Users", input)
+        end,
+
+        output_fields: lambda do |object_definitions|
+          object_definitions[:create_user_output]
+        end
+    },
+    delete_user: {
+        title: "USERS - Delete user",
+        subtitle: "Delete user",
+
+        input_fields: lambda do |object_definitions|
+          [
+            {
+              name: "userId",
+              label: "User ID",
+              type: "string",
+              optional: false
+            },
+          ]
+        end,
+
+        execute: lambda do |connection, input|
+          delete("/scim/directory/#{connection['directory_id']}/Users/#{input['userId']}")
+        end,
+
+        output_fields: lambda do |object_definitions|
+          object_definitions[:create_user_output]
         end
     }
   },
@@ -71,91 +109,228 @@
   # OBJECT DEFINITIONS
   ################################
   object_definitions: {
-  user_by_id_output: {
-    fields: lambda do |_connection, _config_fields|
-      [
-        { name: 'schemas', type: 'array', of: 'string' },
-        { name: 'userName', type: 'string' },
-        {
-          name: 'emails',
-          type: 'array',
-          of: 'object',
-          properties: [
-            { name: 'value', type: 'string' },
-            { name: 'type', type: 'string' },
-            { name: 'primary', type: 'boolean' }
-          ]
-        },
-        { name: 'id', type: 'string' },
-        { name: 'externalId', type: 'string' },
-        {
-          name: 'name',
-          type: 'object',
-          properties: [
-            { name: 'formatted', type: 'string' },
-            { name: 'familyName', type: 'string' },
-            { name: 'givenName', type: 'string' },
-            { name: 'middleName', type: 'string' },
-            { name: 'honorificPrefix', type: 'string' },
-            { name: 'honorificSuffix', type: 'string' }
-          ]
-        },
-        { name: 'displayName', type: 'string' },
-        { name: 'nickName', type: 'string' },
-        { name: 'title', type: 'string' },
-        { name: 'preferredLanguage', type: 'string' },
-        { name: 'department', type: 'string' },
-        { name: 'organization', type: 'string' },
-        { name: 'timezone', type: 'string' },
-        {
-          name: 'phoneNumbers',
-          type: 'array',
-          of: 'object',
-          properties: [
-            { name: 'value', type: 'string' },
-            { name: 'type', type: 'string' },
-            { name: 'primary', type: 'boolean' }
-          ]
-        },
-        {
-          name: 'meta',
-          type: 'object',
-          properties: [
-            { name: 'resourceType', type: 'string' },
-            { name: 'location', type: 'string' },
-            { name: 'lastModified', type: 'string' },
-            { name: 'created', type: 'string' }
-          ]
-        },
-        {
-          name: 'groups',
-          type: 'array',
-          of: 'object',
-          properties: [
-            { name: 'type', type: 'string' },
-            { name: 'value', type: 'string' },
-            { name: 'display', type: 'string' },
-            { name: '$ref', type: 'string' }
-          ]
-        },
-        {
-          name: 'urn:ietf:params:scim:schemas:extension:enterprise:2.0:User',
-          type: 'object',
-          properties: [
-            { name: 'organization', type: 'string' },
-            { name: 'department', type: 'string' }
-          ]
-        },
-        {
-          name: 'urn:scim:schemas:extension:atlassian-external:1.0',
-          type: 'object',
-          properties: [
-            { name: 'atlassianAccountId', type: 'string' }
-          ]
-        },
-        { name: 'active', type: 'boolean' }
-      ]
-    end
+    user_by_id_output: {
+      fields: lambda do |_connection, _config_fields|
+        [
+          { name: 'schemas', type: 'array', of: 'string' },
+          { name: 'userName', type: 'string' },
+          {
+            name: 'emails',
+            type: 'array',
+            of: 'object',
+            properties: [
+              { name: 'value', type: 'string' },
+              { name: 'type', type: 'string' },
+              { name: 'primary', type: 'boolean', control_type: "checkbox" }
+            ]
+          },
+          { name: 'id', type: 'string' },
+          { name: 'externalId', type: 'string' },
+          {
+            name: 'name',
+            type: 'object',
+            properties: [
+              { name: 'formatted', type: 'string' },
+              { name: 'familyName', type: 'string' },
+              { name: 'givenName', type: 'string' },
+              { name: 'middleName', type: 'string' },
+              { name: 'honorificPrefix', type: 'string' },
+              { name: 'honorificSuffix', type: 'string' }
+            ]
+          },
+          { name: 'displayName', type: 'string' },
+          { name: 'nickName', type: 'string' },
+          { name: 'title', type: 'string' },
+          { name: 'preferredLanguage', type: 'string' },
+          { name: 'department', type: 'string' },
+          { name: 'organization', type: 'string' },
+          { name: 'timezone', type: 'string' },
+          {
+            name: 'phoneNumbers',
+            type: 'array',
+            of: 'object',
+            properties: [
+              { name: 'value', type: 'string' },
+              { name: 'type', type: 'string' },
+              { name: 'primary', type: 'boolean', control_type: "checkbox" }
+            ]
+          },
+          {
+            name: 'meta',
+            type: 'object',
+            properties: [
+              { name: 'resourceType', type: 'string' },
+              { name: 'location', type: 'string' },
+              { name: 'lastModified', type: 'string' },
+              { name: 'created', type: 'string' }
+            ]
+          },
+          {
+            name: 'groups',
+            type: 'array',
+            of: 'object',
+            properties: [
+              { name: 'type', type: 'string' },
+              { name: 'value', type: 'string' },
+              { name: 'display', type: 'string' },
+              { name: '$ref', type: 'string' }
+            ]
+          },
+          {
+            name: 'urn:ietf:params:scim:schemas:extension:enterprise:2.0:User',
+            type: 'object',
+            properties: [
+              { name: 'organization', type: 'string' },
+              { name: 'department', type: 'string' }
+            ]
+          },
+          {
+            name: 'urn:scim:schemas:extension:atlassian-external:1.0',
+            type: 'object',
+            properties: [
+              { name: 'atlassianAccountId', type: 'string' }
+            ]
+          },
+          { name: 'active', type: 'boolean', control_type: "checkbox" }
+        ]
+      end
+    },
+    create_user_input: {
+      fields: lambda do |_connection, _config_fields|
+        [
+          { name: 'userName', type: 'string' },
+          {
+            name: 'emails',
+            type: 'array',
+            of: 'object',
+            properties: [
+              { name: 'value', type: 'string' },
+              { name: 'type', type: 'string' },
+              { name: 'primary', type: 'boolean', control_type: "checkbox" }
+            ]
+          },
+          {
+            name: 'name',
+            type: 'object',
+            properties: [
+              { name: 'formatted', type: 'string' },
+              { name: 'familyName', type: 'string' },
+              { name: 'givenName', type: 'string' },
+              { name: 'middleName', type: 'string' },
+              { name: 'honorificPrefix', type: 'string' },
+              { name: 'honorificSuffix', type: 'string' }
+            ]
+          },
+          { name: 'displayName', type: 'string' },
+          { name: 'nickName', type: 'string' },
+          { name: 'title', type: 'string' },
+          { name: 'preferredLanguage', type: 'string' },
+          { name: 'department', type: 'string' },
+          { name: 'organization', type: 'string' },
+          { name: 'timezone', type: 'string' },
+          {
+            name: 'phoneNumbers',
+            type: 'array',
+            of: 'object',
+            properties: [
+              { name: 'value', type: 'string' },
+              { name: 'type', type: 'string' },
+              { name: 'primary', type: 'boolean', control_type: "checkbox" }
+            ]
+          },
+          { name: 'active', type: 'boolean', control_type: "checkbox" }
+        ]
+      end
+    },
+    create_user_output: {
+      fields: lambda do |_connection, _config_fields|
+        [
+          {
+            name: 'schemas',
+            type: 'array',
+            of: 'string'
+          },
+          { name: 'userName', type: 'string' },
+          {
+            name: 'emails',
+            type: 'array',
+            of: 'object',
+            properties: [
+              { name: 'value', type: 'string' },
+              { name: 'type', type: 'string' },
+              { name: 'primary', type: 'boolean', control_type: "checkbox" }
+            ]
+          },
+          { name: 'id', type: 'string' },
+          { name: 'externalId', type: 'string' },
+          {
+            name: 'name',
+            type: 'object',
+            properties: [
+              { name: 'formatted', type: 'string' },
+              { name: 'familyName', type: 'string' },
+              { name: 'givenName', type: 'string' },
+              { name: 'middleName', type: 'string' },
+              { name: 'honorificPrefix', type: 'string' },
+              { name: 'honorificSuffix', type: 'string' }
+            ]
+          },
+          { name: 'displayName', type: 'string' },
+          { name: 'nickName', type: 'string' },
+          { name: 'title', type: 'string' },
+          { name: 'preferredLanguage', type: 'string' },
+          { name: 'department', type: 'string' },
+          { name: 'organization', type: 'string' },
+          { name: 'timezone', type: 'string' },
+          {
+            name: 'phoneNumbers',
+            type: 'array',
+            of: 'object',
+            properties: [
+              { name: 'value', type: 'string' },
+              { name: 'type', type: 'string' },
+              { name: 'primary', type: 'boolean', control_type: "checkbox" }
+            ]
+          },
+          {
+            name: 'meta',
+            type: 'object',
+            properties: [
+              { name: 'resourceType', type: 'string' },
+              { name: 'location', type: 'string' },
+              { name: 'lastModified', type: 'string' },
+              { name: 'created', type: 'string' }
+            ]
+          },
+          {
+            name: 'groups',
+            type: 'array',
+            of: 'object',
+            properties: [
+              { name: 'type', type: 'string' },
+              { name: 'value', type: 'string' },
+              { name: 'display', type: 'string' },
+              { name: '$ref', type: 'string' }
+            ]
+          },
+          {
+            name: 'urn:ietf:params:scim:schemas:extension:enterprise:2.0:User',
+            type: 'object',
+            properties: [
+              { name: 'organization', type: 'string' },
+              { name: 'department', type: 'string' }
+            ]
+          },
+          {
+            name: 'urn:scim:schemas:extension:atlassian-external:1.0',
+            type: 'object',
+            properties: [
+              { name: 'atlassianAccountId', type: 'string' }
+            ]
+          },
+          { name: 'active', type: 'boolean', control_type: "checkbox" }
+        ]
+      end
+    }
   }
-}
 }

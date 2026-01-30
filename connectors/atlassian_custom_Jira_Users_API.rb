@@ -1,5 +1,5 @@
 {
-  title: "Atlassian - Jira Users API - https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-users/",
+  title: "Atlassian Jira Users (Custom) - https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-users/",
 
   # Connection configuration
   connection: {
@@ -28,7 +28,7 @@
         params = {
           audience: "api.atlassian.com",
           client_id: connection["client_id"],
-          scope: "read:jira-user read:jira-work write:jira-work manage:jira-configuration offline_access",
+          scope: "read:jira-user read:jira-work write:jira-work manage:jira-configuration offline_access read:license:jira READ",
           redirect_uri: "https://www.workato.com/oauth/callback",
           response_type: "code",
           prompt: "consent"
@@ -98,48 +98,12 @@
     get("https://api.atlassian.com/oauth/token/accessible-resources")
   end,
 
-  # Object definitions
-  object_definitions: {
-    user: {
-      fields: lambda do |connection, config_fields|
-        [
-          { name: "accountId", label: "Account ID", type: "string" },
-          { name: "accountType", label: "Account Type", type: "string" },
-          { name: "emailAddress", label: "Email Address", type: "string" },
-          { name: "displayName", label: "Display Name", type: "string" },
-          { name: "active", label: "Active", type: "boolean" },
-          { name: "timeZone", label: "Time Zone", type: "string" },
-          { name: "locale", label: "Locale", type: "string" },
-          { name: "avatarUrls", label: "Avatar URLs", type: "object", 
-            properties: [
-              { name: "48x48", type: "string" },
-              { name: "24x24", type: "string" },
-              { name: "16x16", type: "string" },
-              { name: "32x32", type: "string" }
-            ]
-          },
-          { name: "self", label: "Self URL", type: "string" }
-        ]
-      end
-    },
-
-    cloud_resource: {
-      fields: lambda do |connection, config_fields|
-        [
-          { name: "id", label: "Cloud ID", type: "string" },
-          { name: "name", label: "Site Name", type: "string" },
-          { name: "url", label: "Site URL", type: "string" },
-          { name: "scopes", label: "Scopes", type: "array", of: "string" },
-          { name: "avatarUrl", label: "Avatar URL", type: "string" }
-        ]
-      end
-    }
-  },
-
   # Actions
   actions: {
     # Get accessible resources (sites)
     get_accessible_resources: {
+      title: "Acessible resources",
+      subtitle: "Acessible resources",
       description: "Get list of <span class='provider'>Jira sites</span> accessible to the authenticated user",
 
       execute: lambda do |connection, input|
@@ -155,179 +119,92 @@
         ]
       end
     },
-
-    # Get user by account ID
-    get_user: {
-      description: "Get <span class='provider'>user details</span> by account ID",
-
+    
+    get_jira_instance_license: {
+      title: "LICENSE - Get license",
+      description: "Returns licensing information about the Jira instance.",
+      
       input_fields: lambda do |object_definitions|
         [
           { name: "cloud_id", label: "Jira Site", 
             control_type: "select", pick_list: "cloud_resources",
-            optional: false, hint: "Select your Jira site" },
-          { name: "accountId", label: "Account ID", optional: false,
-            hint: "The account ID of the user" }
+            optional: false, hint: "Select your Jira site" }
         ]
       end,
-
+      
       execute: lambda do |connection, input|
-        get("https://api.atlassian.com/ex/jira/#{input['cloud_id']}/rest/api/3/user").
-          params(accountId: input['accountId'])
+          get("https://api.atlassian.com/ex/jira/#{input['cloud_id']}/rest/api/3/instance/license")
       end,
 
       output_fields: lambda do |object_definitions|
-        object_definitions["user"]
+        object_definitions[:instance_license_output]
       end
     },
-
-    # Search for users
-    search_users: {
-      description: "Search for <span class='provider'>users</span> in Jira",
-
+    
+    get_aproximate_license_count: {
+      title: "LICENSE - Get approximate license count",
+      description: "Returns the approximate number of user accounts across all Jira licenses. Note that this information is cached with a 7-day lifecycle and could be stale at the time of call.",
+      
       input_fields: lambda do |object_definitions|
         [
           { name: "cloud_id", label: "Jira Site", 
             control_type: "select", pick_list: "cloud_resources",
-            optional: false, hint: "Select your Jira site" },
-          { name: "query", label: "Query", optional: true,
-            hint: "Query string to search for users (searches by displayName, email, etc.)" },
-          { name: "maxResults", label: "Max Results", type: "integer", 
-            optional: true, default: 50,
-            hint: "Maximum number of users to return (default: 50)" },
-          { name: "startAt", label: "Start At", type: "integer", 
-            optional: true, default: 0,
-            hint: "Index of the first user to return (for pagination)" }
+            optional: false, hint: "Select your Jira site" }
         ]
       end,
-
+      
       execute: lambda do |connection, input|
-        params = {
-          maxResults: input['maxResults'] || 50,
-          startAt: input['startAt'] || 0
-        }
-        params['query'] = input['query'] if input['query'].present?
-
-        response = get("https://api.atlassian.com/ex/jira/#{input['cloud_id']}/rest/api/3/user/search").
-          params(params)
-
-        { users: response }
+          get("https://api.atlassian.com/ex/jira/#{input['cloud_id']}/rest/api/3/license/approximateLicenseCount'")
       end,
 
       output_fields: lambda do |object_definitions|
-        [
-          { name: "users", type: "array", of: "object",
-            properties: object_definitions["user"] }
-        ]
+        object_definitions[:approximate_license_count_output]
       end
     },
-
-    # Get all users (bulk)
-    get_all_users: {
-      description: "Get all <span class='provider'>users</span> from Jira site",
-
+    
+    get_aproximate_application_license_count: {
+      title: "LICENSE - Get approximate application license count",
+      description: "Returns the total approximate number of user accounts for a single Jira license. Note that this information is cached with a 7-day lifecycle and could be stale at the time of call.",
+      
       input_fields: lambda do |object_definitions|
         [
           { name: "cloud_id", label: "Jira Site", 
             control_type: "select", pick_list: "cloud_resources",
             optional: false, hint: "Select your Jira site" },
-          { name: "maxResults", label: "Max Results", type: "integer", 
-            optional: true, default: 50,
-            hint: "Maximum number of users to return per page" }
-        ]
-      end,
-
-      execute: lambda do |connection, input|
-        params = {
-          maxResults: input['maxResults'] || 50,
-          startAt: 0
-        }
-
-        response = get("https://api.atlassian.com/ex/jira/#{input['cloud_id']}/rest/api/3/users/search").
-          params(params)
-
-        { users: response }
-      end,
-
-      output_fields: lambda do |object_definitions|
-        [
-          { name: "users", type: "array", of: "object",
-            properties: object_definitions["user"] }
-        ]
-      end
-    },
-
-    # Get user groups
-    get_user_groups: {
-      description: "Get <span class='provider'>groups</span> that a user belongs to",
-
-      input_fields: lambda do |object_definitions|
-        [
-          { name: "cloud_id", label: "Jira Site", 
-            control_type: "select", pick_list: "cloud_resources",
-            optional: false, hint: "Select your Jira site" },
-          { name: "accountId", label: "Account ID", optional: false,
-            hint: "The account ID of the user" }
-        ]
-      end,
-
-      execute: lambda do |connection, input|
-        response = get("https://api.atlassian.com/ex/jira/#{input['cloud_id']}/rest/api/3/user/groups").
-          params(accountId: input['accountId'])
-
-        { groups: response }
-      end,
-
-      output_fields: lambda do |object_definitions|
-        [
-          { name: "groups", type: "array", of: "object",
-            properties: [
-              { name: "name", type: "string" },
-              { name: "groupId", type: "string" },
-              { name: "self", type: "string" }
-            ]
+          {
+            name: "application_key",
+            label: "Application key",
+            control_type: "select",
+            pick_list: [
+              ["Jira Core", "jira-core"],
+              ["Jira Product Discovery", "jira-product-discovery"],
+              ["Jira Software", "jira-software"],
+              ["Jira Service Desk", "jira-servicedesk"]
+            ],
+            optional: false,
+            hint: "The ID of the application, represents a specific version of Jira.",
+            toggle_hint: "Select from list",
+            toggle_field: {
+              name: "application_key",
+              label: "Application key",
+              type: 'string',
+              control_type: "text",
+              hint: "Enter a custom application key or use a datapill",
+              toggle_hint: 'String value',
+            }
           }
         ]
-      end
-    },
-
-    # Find users assignable to projects
-    find_assignable_users: {
-      description: "Find <span class='provider'>users</span> assignable to projects",
-
-      input_fields: lambda do |object_definitions|
-        [
-          { name: "cloud_id", label: "Jira Site", 
-            control_type: "select", pick_list: "cloud_resources",
-            optional: false, hint: "Select your Jira site" },
-          { name: "project", label: "Project Key or ID", optional: true,
-            hint: "Project key or ID to find assignable users for" },
-          { name: "query", label: "Query", optional: true,
-            hint: "Query string to filter users" },
-          { name: "maxResults", label: "Max Results", type: "integer", 
-            optional: true, default: 50 }
-        ]
       end,
-
+      
       execute: lambda do |connection, input|
-        params = {
-          maxResults: input['maxResults'] || 50
-        }
-        params['project'] = input['project'] if input['project'].present?
-        params['query'] = input['query'] if input['query'].present?
-
-        response = get("https://api.atlassian.com/ex/jira/#{input['cloud_id']}/rest/api/3/user/assignable/search").
-          params(params)
-
-        { users: response }
+          get("https://api.atlassian.com/ex/jira/#{input['cloud_id']}/rest/api/3/license/approximateLicenseCount/product/#{input['application_key']}'")
       end,
 
       output_fields: lambda do |object_definitions|
-        [
-          { name: "users", type: "array", of: "object",
-            properties: object_definitions["user"] }
-        ]
+        object_definitions[:approximate_license_count_output]
       end
-    }
+    },
+
   },
 
   # Triggers
@@ -335,6 +212,7 @@
     # Note: Jira doesn't provide real-time webhooks through OAuth 2.0 apps easily
     # These would be polling-based triggers
     new_or_updated_user: {
+      subtitle: "Jira Users API",
       description: "Triggers when a <span class='provider'>user</span> is created or updated",
       
       type: :paging_desc,
@@ -377,6 +255,68 @@
       end
     }
   },
+  
+  # Object definitions
+  object_definitions: {
+    user: {
+      fields: lambda do |connection, config_fields|
+        [
+          { name: "accountId", label: "Account ID", type: "string" },
+          { name: "accountType", label: "Account Type", type: "string" },
+          { name: "emailAddress", label: "Email Address", type: "string" },
+          { name: "displayName", label: "Display Name", type: "string" },
+          { name: "active", label: "Active", type: "boolean" },
+          { name: "timeZone", label: "Time Zone", type: "string" },
+          { name: "locale", label: "Locale", type: "string" },
+          { name: "avatarUrls", label: "Avatar URLs", type: "object", 
+            properties: [
+              { name: "48x48", type: "string" },
+              { name: "24x24", type: "string" },
+              { name: "16x16", type: "string" },
+              { name: "32x32", type: "string" }
+            ]
+          },
+          { name: "self", label: "Self URL", type: "string" }
+        ]
+      end
+    },
+
+    cloud_resource: {
+      fields: lambda do |connection, config_fields|
+        [
+          { name: "id", label: "Cloud ID", type: "string" },
+          { name: "name", label: "Site Name", type: "string" },
+          { name: "url", label: "Site URL", type: "string" },
+          { name: "scopes", label: "Scopes", type: "array", of: "string" },
+          { name: "avatarUrl", label: "Avatar URL", type: "string" }
+        ]
+      end
+    },
+    
+    instance_license_output: {
+      fields: lambda do |_connection, _config_fields|
+        [
+          {
+            name: 'applications',
+            type: 'array',
+            of: 'object',
+            properties: [
+              { name: 'id', type: 'string' },
+              { name: 'plan', type: 'string' }
+            ]
+          }
+        ]
+      end
+    },
+    approximate_license_count_output: {
+      fields: lambda do |_connection, _config_fields|
+        [
+          { name: 'key', type: 'string' },
+          { name: 'value', type: 'string' }
+        ]
+      end
+    }
+  },
 
   # Pick lists (for dropdown fields)
   pick_lists: {
@@ -386,6 +326,6 @@
       resources.map do |resource|
         [resource["name"], resource["id"]]
       end
-    end
+    end,
   }
 }
