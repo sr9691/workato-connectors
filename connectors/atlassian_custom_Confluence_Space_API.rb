@@ -158,7 +158,7 @@
       end,
       
       output_fields: lambda do |object_definitions|
-        object_definitions["all_spaces_output"]
+        object_definitions["space_detail_output"]
       end
     }
   },
